@@ -5,3 +5,4 @@ joblib
 pymongo
 bcrypt
 python-dotenv
+scikit-learn
