@@ -55,45 +55,147 @@ scaler = joblib.load("models/scaler.pkl")
 # ---------------------------
 st.title("🩺 Diabetes Risk Predictor")
 
-pregnancies = st.number_input("Pregnancies", min_value=0, max_value=20)
-glucose = st.number_input("Glucose (mg/dL)", min_value=0.0, max_value=300.0)
-blood_pressure = st.number_input("Blood Pressure", min_value=0.0)
-skin_thickness = st.number_input("Skin Thickness", min_value=0.0)
-insulin = st.number_input("Insulin", min_value=0.0)
+ 
+# User Inputs (No Defaults)
+# ---------------------------
 
-height = st.number_input("Height (cm)", min_value=50.0)
-weight = st.number_input("Weight (kg)", min_value=10.0)
+st.subheader("🧾 Patient Clinical Information")
 
-bmi = weight / ((height / 100) ** 2)
-st.info(f"BMI: {bmi:.2f}")
+# Pregnancies
+pregnancies = st.number_input(
+    "Pregnancies",
+    min_value=0,
+    max_value=20,
+    step=1
+)
+st.caption("Normal: 0–5 pregnancies | Typical dataset range: 0–17")
 
-pedigree = st.number_input("Diabetes Pedigree", min_value=0.0)
-age = st.number_input("Age", min_value=1)
+# Glucose
+glucose = st.number_input(
+    "Glucose Level (mg/dL)",
+    min_value=0.0,
+    max_value=300.0,
+    format="%.2f"
+)
+st.caption("Normal (fasting): 70–99 mg/dL | Prediabetes: 100–125 | Diabetes: ≥126")
 
-def get_risk(prob):
+# Blood Pressure
+blood_pressure = st.number_input(
+    "Blood Pressure (mm Hg)",
+    min_value=0.0,
+    max_value=200.0,
+    format="%.2f"
+)
+st.caption("Normal (Diastolic): 60–80 mm Hg | High: ≥90")
+
+# Skin Thickness
+skin_thickness = st.number_input(
+    "Skin Thickness (mm)",
+    min_value=0.0,
+    max_value=100.0,
+    format="%.2f"
+)
+st.caption("Normal: 10–40 mm | Dataset range: 0–99")
+
+# Insulin
+insulin = st.number_input(
+    "Insulin Level (mu U/ml)",
+    min_value=0.0,
+    max_value=900.0,
+    format="%.2f"
+)
+st.caption("Normal fasting insulin: 16–166 mu U/ml")
+
+# ---------------------------
+# BMI Calculator
+# ---------------------------
+
+st.subheader("📏 BMI Calculator")
+
+height_cm = st.number_input(
+    "Height (cm)",
+    min_value=50.0,
+    max_value=250.0,
+    format="%.2f"
+)
+
+weight_kg = st.number_input(
+    "Weight (kg)",
+    min_value=10.0,
+    max_value=300.0,
+    format="%.2f"
+)
+
+if height_cm > 0:
+    bmi = weight_kg / ((height_cm / 100) ** 2)
+else:
+    bmi = 0
+
+st.info(f"Calculated BMI: {bmi:.2f}")
+st.caption("Normal BMI: 18.5–24.9 | Overweight: 25–29.9 | Obese: ≥30")
+
+# Diabetes Pedigree Function
+diabetes_pedigree = st.number_input(
+    "Diabetes Pedigree Function",
+    min_value=0.0,
+    max_value=3.0,
+    format="%.3f"
+)
+st.caption("Higher value = stronger family history of diabetes | Dataset range: 0.078–2.42")
+
+# Age
+age = st.number_input(
+    "Age",
+    min_value=1,
+    max_value=120,
+    step=1
+)
+st.caption("Higher risk typically ≥45 years")
+
+# ---------------------------
+# Risk Level Function
+# ---------------------------
+def get_risk_level(prob):
     if prob < 0.3:
-        return "Low Risk"
+        return "🟢 Low Risk"
     elif prob < 0.7:
-        return "Medium Risk"
+        return "🟠 Medium Risk"
     else:
-        return "High Risk"
+        return "🔴 High Risk"
 
-if st.button("Predict"):
-    inputs = [pregnancies, glucose, blood_pressure,
-              skin_thickness, insulin, bmi,
-              pedigree, age]
+# ---------------------------
+# Prediction Button
+# ---------------------------
+if st.button("Predict Diabetes Risk"):
 
-    with st.spinner("Analyzing..."):
-        time.sleep(1)
+    # Validation Check
+    inputs = [
+        pregnancies, glucose, blood_pressure,
+        skin_thickness, insulin, bmi,
+        diabetes_pedigree, age
+    ]
 
-        input_data = np.array([inputs])
-        input_scaled = scaler.transform(input_data)
-        input_tensor = torch.tensor(input_scaled, dtype=torch.float32)
+    if any(value < 0 for value in inputs):
+        st.error("❌ Values cannot be negative.")
+    else:
+        with st.spinner("Analyzing patient data..."):
+            time.sleep(1.5)
 
-        with torch.no_grad():
-            prediction = model(input_tensor)
-            probability = prediction.item()
+            input_data = np.array([inputs])
+            input_scaled = scaler.transform(input_data)
+            input_tensor = torch.tensor(input_scaled, dtype=torch.float32)
 
-    st.success("Prediction Complete")
-    st.write(f"Probability: {probability:.2f}")
-    st.write(f"Risk Level: {get_risk(probability)}")
+            with torch.no_grad():
+                prediction = model(input_tensor)
+                probability = prediction.item()
+
+            risk = get_risk_level(probability)
+
+        st.success("Prediction Completed ✅")
+        st.write(f"### Probability of Diabetes: {probability:.2f}")
+        st.write(f"### Risk Level: {risk}")
+
+        if probability > 0.5:
+            st.error("⚠️ Patient Likely Diabetic")
+        else:
+            st.success("✅ Patient Likely Non-Diabetic")

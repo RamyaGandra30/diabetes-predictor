@@ -1,0 +1,7 @@
+streamlit
+torch
+numpy
+joblib
+pymongo
+bcrypt
+python-dotenv
